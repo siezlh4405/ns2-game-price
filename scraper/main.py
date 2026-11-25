@@ -13,6 +13,7 @@ from sources.tw_official import fetch_tw_official
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 MANUAL_PATH = Path(__file__).resolve().parent / "sources" / "manual.json"
+CATALOG_PATH = ROOT_DIR / "data" / "catalog.json"
 HISTORY_PATH = ROOT_DIR / "data" / "history.json"
 OUTPUT_PATH = ROOT_DIR / "frontend" / "public" / "data" / "games.json"
 
@@ -21,6 +22,33 @@ PLATFORM_PRIORITY = {
     "switch2_edition": 2,
     "switch": 1,
 }
+
+
+def load_cached_catalog() -> list[dict[str, Any]]:
+    if not CATALOG_PATH.exists():
+        return []
+    try:
+        payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        items = payload.get("games", payload) if isinstance(payload, dict) else payload
+        if isinstance(items, list):
+            return items
+    except Exception as exc:
+        print(f"[catalog] Warning: failed to read {CATALOG_PATH}: {exc}")
+    return []
+
+
+def save_cached_catalog(catalog: dict[str, dict[str, Any]], updated_at: str) -> None:
+    CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    games_sorted = sorted(catalog.values(), key=lambda g: g["nsuid"])
+    payload = {
+        "updatedAt": updated_at,
+        "count": len(games_sorted),
+        "games": games_sorted,
+    }
+    CATALOG_PATH.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
 
 
 def load_manual_games() -> list[dict[str, Any]]:
@@ -59,13 +87,16 @@ def merge_catalog(lists: list[list[dict[str, Any]]]) -> dict[str, dict[str, Any]
         for game in game_list:
             nsuid = game["nsuid"]
             if nsuid not in merged:
-                merged[nsuid] = dict(game)
+                merged[nsuid] = {
+                    **game,
+                    "sources": list(game.get("sources", [])),
+                }
                 continue
 
             existing = merged[nsuid]
             # Prefer higher-specificity platform (switch2 > switch2_edition > switch)
-            if PLATFORM_PRIORITY.get(game["platform"], 0) > PLATFORM_PRIORITY.get(
-                existing["platform"], 0
+            if PLATFORM_PRIORITY.get(game.get("platform", "switch"), 0) > PLATFORM_PRIORITY.get(
+                existing.get("platform", "switch"), 0
             ):
                 existing["platform"] = game["platform"]
 
@@ -101,6 +132,11 @@ def main() -> None:
         help="Limit HK store pages for quick local testing (0 = fetch all pages).",
     )
     parser.add_argument(
+        "--skip-hk",
+        action="store_true",
+        help="Skip scraping HK store and rely on cached catalog.json + tw_official.",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=4,
@@ -112,19 +148,38 @@ def main() -> None:
     updated_at = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     today_str = now_utc.strftime("%Y-%m-%d")
 
-    print("[main] 1. Fetching Nintendo Taiwan official software list...")
-    tw_games = fetch_tw_official()
-    print(f"[main]    -> {len(tw_games)} titles from tw_official")
+    cached_games = load_cached_catalog()
+    print(f"[main] 0. Loaded {len(cached_games)} cached titles from data/catalog.json")
 
-    print("[main] 2. Fetching Nintendo HK digital store list...")
-    hk_games = fetch_hk_store(max_pages=args.max_hk_pages, workers=args.workers)
-    print(f"[main]    -> {len(hk_games)} titles from hk_store")
+    print("[main] 1. Fetching Nintendo Taiwan official software list...")
+    tw_games: list[dict[str, Any]] = []
+    try:
+        tw_games = fetch_tw_official()
+        print(f"[main]    -> {len(tw_games)} titles from tw_official")
+    except Exception as exc:
+        print(f"[main]    -> tw_official failed (using cache): {exc}")
+
+    hk_games: list[dict[str, Any]] = []
+    if args.skip_hk:
+        print("[main] 2. Skipping HK store (--skip-hk)")
+    else:
+        print("[main] 2. Fetching Nintendo HK digital store list...")
+        try:
+            hk_games = fetch_hk_store(
+                max_pages=args.max_hk_pages, workers=args.workers
+            )
+            print(f"[main]    -> {len(hk_games)} titles from hk_store")
+        except Exception as exc:
+            print(f"[main]    -> hk_store failed (using cache): {exc}")
 
     manual_games = load_manual_games()
     print(f"[main]    -> {len(manual_games)} titles from manual.json")
 
-    catalog = merge_catalog([tw_games, hk_games, manual_games])
+    catalog = merge_catalog([cached_games, tw_games, hk_games, manual_games])
     print(f"[main] 3. Merged unique NSUIDs: {len(catalog)}")
+
+    if catalog:
+        save_cached_catalog(catalog, updated_at)
 
     print("[main] 4. Querying Taiwan eShop prices (country=TW)...")
     prices = fetch_tw_prices(list(catalog.keys()), country="TW", lang="zh")
@@ -185,7 +240,7 @@ def main() -> None:
             }
         )
 
-    # Sort: on-sale first (highest discount%), then newest releaseDate
+    # Sort: on-sale first (highest discount%), then lowest currentPrice
     output_games.sort(
         key=lambda g: (
             0 if g["isOnSale"] else 1,

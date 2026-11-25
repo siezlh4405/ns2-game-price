@@ -34,3 +34,10 @@ npm run dev
 1. 將此專案推送到 GitHub 的 `main` 分支。
 2. 到 Repo 的 **Settings → Pages → Build and deployment → Source**，選擇 **GitHub Actions**。
 3. 到 **Actions** 分頁手動點一次 **Update Taiwan eShop Prices → Run workflow**，即會抓取全量資料並部署完成。
+
+## 已知限制與待優化清單（Known Issues / Roadmap）
+
+- [ ] **香港商店 (`store.nintendo.com.hk`) 在 GitHub Actions 雲端 IP 會被擋**：目前雲端排程抓香港清單會回傳 0 筆，先以本機同步 + `data/catalog.json` 快取兜底（台灣價格 API `api.ec.nintendo.com/v1/price` 在雲端仍可正常每日更新所有快取遊戲的即時價格）。後續可改用不擋雲端 IP 的清單來源（如日／美／歐區官方 JSON/XML、社群公開 NSUID 清單）或透過代理／Cloudflare Worker 抓取。
+- [ ] **其他區域上架但台灣可買的遊戲**：部分獨立遊戲或跨區共用 NSUID 遊戲未列於香港商店，後續可整合日區／美區／歐區清單並透過 `country=TW` 過濾補齊。
+- [ ] **史低標籤判斷優化**：剛建站初期因只有第一筆快照，所有特價遊戲都會顯示「史低」，後續可改為累積至少 2 次價格變動或追蹤達一定天數後才標示。
+- [ ] **降價通知（選配）**：未來可在 GitHub Actions 偵測到願望清單或新史低時推送至 Discord / Telegram / Email。
