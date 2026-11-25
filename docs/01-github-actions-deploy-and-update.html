@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 01：GitHub Actions 完全入門 — deploy.yml 與 update-data.yml</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #0b1220;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #e60012;
+      --blue: #38bdf8;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --purple: #c084fc;
+      --rose: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 36px 20px 90px;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+    }
+    .tag {
+      display: inline-block;
+      background: rgba(230, 0, 18, 0.18);
+      color: #fda4af;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-right: 8px;
+    }
+    h1 {
+      margin: 12px 0 8px;
+      font-size: 2rem;
+      line-height: 1.3;
+      color: #fff;
+    }
+    .lead {
+      color: var(--muted);
+      font-size: 1.02rem;
+      margin: 0;
+    }
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 36px;
+    }
+    .toc h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #fff;
+      border: none;
+      padding: 0;
+    }
+    .toc ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+    .toc li { margin: 4px 0; }
+    section {
+      margin-bottom: 48px;
+    }
+    h2 {
+      font-size: 1.45rem;
+      color: #fff;
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+      margin: 0 0 16px;
+    }
+    h3 {
+      font-size: 1.12rem;
+      color: var(--blue);
+      margin: 24px 0 10px;
+    }
+    p { margin: 0 0 14px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin: 16px 0;
+    }
+    .callout {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 18px 0;
+      border-left: 4px solid var(--blue);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .callout.warn {
+      border-left-color: var(--amber);
+      background: rgba(251, 191, 36, 0.08);
+    }
+    .callout.good {
+      border-left-color: var(--green);
+      background: rgba(74, 222, 128, 0.08);
+    }
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .term-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .term-card strong {
+      color: var(--amber);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+    .term-card span {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .flow-num {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      margin-top: 2px;
+    }
+    .flow-arrow {
+      text-align: center;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    pre {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: Consolas, "Fira Code", monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      margin: 14px 0;
+    }
+    code {
+      font-family: Consolas, "Fira Code", monospace;
+      background: rgba(148, 163, 184, 0.16);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 0.88em;
+      color: #f8fafc;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+    }
+    .c-key { color: #38bdf8; }
+    .c-str { color: #4ade80; }
+    .c-com { color: #64748b; font-style: italic; }
+    .c-hi  { color: #fbbf24; font-weight: 700; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.93rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--surface);
+      color: #fff;
+    }
+    .cron-box {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      text-align: center;
+      margin: 14px 0;
+    }
+    .cron-cell {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 6px;
+    }
+    .cron-val {
+      font-family: Consolas, monospace;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--amber);
+    }
+    .cron-lbl {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="./index.html">← 回到做中學筆記目錄</a>
+
+    <header>
+      <span class="tag">Lesson 01</span>
+      <span class="tag">GitHub Actions</span>
+      <span class="tag">零基礎友善</span>
+      <h1>GitHub Actions 完全入門：看懂我們的 deploy.yml 與 update-data.yml</h1>
+      <p class="lead">
+        用最白話的方式，一步步拆解我們專案裡 <code>.github/workflows/</code> 底下的兩份自動化腳本，弄懂「定時抓價格」與「自動部署網站」背後到底發生了什麼事。
+      </p>
+    </header>
+
+    <nav class="toc">
+      <h2>這篇你會學到</h2>
+      <ol>
+        <li><a href="#s1">什麼是 GitHub Actions？（用餐廳外送比喻一次秒懂）</a></li>
+        <li><a href="#s2">必學的 6 個關鍵名詞（Workflow / Trigger / Runner / Job / Step / Action）</a></li>
+        <li><a href="#s3">為什麼我們要拆成兩個檔案？兩份檔案怎麼合作？</a></li>
+        <li><a href="#s4">逐行拆解 #1：deploy.yml（怎麼把 Vue 變成免費網站）</a></li>
+        <li><a href="#s5">逐行拆解 #2：update-data.yml（怎麼定時抓價、存檔再呼叫部署）</a></li>
+        <li><a href="#s6">看懂 Cron 定時語法（為什麼 0 1,13 * * * 是台灣早九晚九？）</a></li>
+        <li><a href="#s7">實戰才學得到的 3 個真實小坑（我們剛才真的踩過！）</a></li>
+      </ol>
+    </nav>
+
+    <!-- Section 1 -->
+    <section id="s1">
+      <h2>1. 什麼是 GitHub Actions？</h2>
+      <p>
+        平常你在自己電腦上開發時，如果你想更新網站，必須手動做這些事：打開電腦 → 跑 <code>python scraper/main.py</code> → 跑 <code>npm run build</code> → 把打包好的網頁上傳到主機。
+      </p>
+      <p>
+        <strong>GitHub Actions 就是 GitHub 免費借你一台「雲端臨時電腦（Ubuntu Linux）」</strong>，你只要把操作步驟寫成一份清單放在 <code>.github/workflows/</code> 資料夾裡，只要時間到了或你推程式碼上去，GitHub 就會自動開機、照你的清單把事情做完、做完再自動關機。
+      </p>
+
+      <div class="callout good">
+        <div class="callout-title">💡 生活比喻：把 GitHub Actions 想成「自動化工廠的 SOP 說明書」</div>
+        <ul style="margin: 6px 0 0; padding-left: 20px;">
+          <li><strong><code>.github/workflows/*.yml</code></strong>：就是你寫給機器人的 SOP 說明書（使用 YAML 格式，靠縮排表達階層）。</li>
+          <li><strong>Runner（<code>ubuntu-latest</code>）</strong>：每次要執行時，GitHub 現場幫你租一台全新的 Linux 電腦（用完即丟，乾乾淨淨）。</li>
+          <li><strong>GitHub Pages</strong>：免費的靜態網站空間，把打包好的 HTML/CSS/JS 放進去，全世界就能用網址打開看。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 2 -->
+    <section id="s2">
+      <h2>2. 必學的 6 個關鍵名詞</h2>
+      <p>看懂這 6 個詞，你就能看懂網路上 90% 的 GitHub Actions 設定檔：</p>
+
+      <div class="grid-2">
+        <div class="term-card">
+          <strong>1. Workflow（工作流程）</strong>
+          <span>就是 <code>.github/workflows/</code> 裡的一份 <code>.yml</code> 檔案。我們有兩個：一個負責抓價，一個負責部署。</span>
+        </div>
+        <div class="term-card">
+          <strong>2. Trigger（觸發條件：<code>on:</code>）</strong>
+          <span>決定「什麼時候啟動」這份流程。例如：<code>push</code>（推程式碼時）、<code>schedule</code>（定時）、<code>workflow_dispatch</code>（手動按按鈕）。</span>
+        </div>
+        <div class="term-card">
+          <strong>3. Job（工作站：<code>jobs:</code>）</strong>
+          <span>一個 Workflow 裡面可以分好幾個 Job（例如 <code>build</code> 和 <code>deploy</code>）。每個 Job 都在一台獨立的全新電腦上跑。</span>
+        </div>
+        <div class="term-card">
+          <strong>4. Runner（執行電腦：<code>runs-on:</code>）</strong>
+          <span>這台雲端電腦要裝什麼作業系統。我們用 <code>ubuntu-latest</code>（最新免費 Linux），啟動快又穩定。</span>
+        </div>
+        <div class="term-card">
+          <strong>5. Step（步驟：<code>steps:</code>）</strong>
+          <span>在同一個 Job 裡，照順序一條條執行的指令。可以用 <code>run:</code> 跑終端機指令，或用 <code>uses:</code> 套用別人寫好的積木。</span>
+        </div>
+        <div class="term-card">
+          <strong>6. Action（現成積木：<code>uses:</code>）</strong>
+          <span>像 <code>actions/checkout@v7</code> 就是 GitHub 官方寫好的現成工具，幫你把程式碼下載到雲端電腦，不用自己寫一堆指令。</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3 -->
+    <section id="s3">
+      <h2>3. 為什麼我們要拆成兩個檔案？</h2>
+      <p>
+        你可能會想：「全部寫在同一份 YAML 不行嗎？」其實可以，但拆成兩份有一個超大的好處——<strong>分工清楚、不浪費時間</strong>：
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>情境</th>
+            <th>會觸發哪一個 Workflow？</th>
+            <th>實際會做什麼？</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>你改了 Vue 畫面（例如改按鈕顏色）並 <code>git push</code></td>
+            <td>只跑 <code>deploy.yml</code></td>
+            <td>直接打包 Vue → 部署網頁（約 30 秒），<strong>不用重跑爬蟲</strong>！</td>
+          </tr>
+          <tr>
+            <td>每天台灣時間 09:00 / 21:00（或手動點 Run）</td>
+            <td>跑 <code>update-data.yml</code></td>
+            <td>先跑 Python 爬蟲 → 如果價格有變動，存檔回 GitHub → <strong>再呼叫 <code>deploy.yml</code></strong> 更新網站！</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>兩份檔案的串聯流程圖</h3>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div>
+            <strong>時間到（09:00 / 21:00）或手動觸發 <code>update-data.yml</code></strong><br />
+            <span style="color: var(--muted);">開啟一台 Ubuntu 電腦執行 <code>scrape</code> Job</span>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div>
+            <strong>執行 <code>python scraper/main.py</code></strong><br />
+            <span style="color: var(--muted);">讀取 <code>data/catalog.json</code> + 查台灣價格 API → 更新 <code>history.json</code> 與 <code>games.json</code></span>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div>
+            <strong>檢查檔案有沒有變動（<code>git diff</code>）</strong><br />
+            <span style="color: var(--muted);">有變動才 <code>git commit &amp; push</code> 回 <code>main</code> 分支，並輸出 <code>changed=true</code></span>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div>
+            <strong>呼叫可重用的 <code>deploy.yml</code>（<code>uses: ./.github/workflows/deploy.yml</code>）</strong><br />
+            <span style="color: var(--muted);">打包 Vue 專案（<code>npm run build</code>）→ 上傳產物（Artifact）→ 部署上 GitHub Pages！</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4 -->
+    <section id="s4">
+      <h2>4. 逐行拆解 #1：<code>.github/workflows/deploy.yml</code></h2>
+      <p>這份檔案只專心做一件事：<strong>把 <code>frontend/</code> 裡的 Vue 原始碼編譯成靜態網頁，放到 GitHub Pages 上。</strong></p>
+
+      <h3>前半段：什麼時候啟動？需要什麼權限？</h3>
+<pre><code><span class="c-key">name:</span> <span class="c-str">Deploy Frontend to GitHub Pages</span>
+
+<span class="c-key">on:</span>
+  <span class="c-key">push:</span>
+    <span class="c-key">branches:</span> [main]
+    <span class="c-key">paths:</span>                          <span class="c-com"># 只有改到前端或 deploy.yml 本身才觸發</span>
+      - <span class="c-str">'frontend/**'</span>
+      - <span class="c-str">'.github/workflows/deploy.yml'</span>
+  <span class="c-key">workflow_dispatch:</span>                <span class="c-com"># 允許你在 GitHub 網頁手動按「Run workflow」</span>
+  <span class="c-key">workflow_call:</span>                    <span class="c-com"># 關鍵！允許「別的 workflow」（update-data.yml）來呼叫它</span>
+
+<span class="c-key">permissions:</span>                        <span class="c-com"># 最小權限原則：只給部署 Pages 必要的權限</span>
+  <span class="c-key">contents:</span> read                    <span class="c-com"># 讀取程式碼</span>
+  <span class="c-key">pages:</span> write                      <span class="c-com"># 寫入 GitHub Pages</span>
+  <span class="c-key">id-token:</span> write                   <span class="c-com"># GitHub Pages 部署身分驗證</span>
+
+<span class="c-key">concurrency:</span>                        <span class="c-com"># 排隊機制：同時間只允許一個部署在跑，避免互蓋</span>
+  <span class="c-key">group:</span> pages
+  <span class="c-key">cancel-in-progress:</span> false         <span class="c-com"># 不要砍掉正在部署到一半的工作，讓它跑完</span></code></pre>
+
+      <h3>後半段：兩個 Job（先 Build，再 Deploy）</h3>
+<pre><code><span class="c-key">jobs:</span>
+  <span class="c-key">build:</span>                            <span class="c-com"># 工作站 1：負責把 Vue 打包成 dist/</span>
+    <span class="c-key">runs-on:</span> ubuntu-latest
+    <span class="c-key">steps:</span>
+      - <span class="c-key">name:</span> Checkout              <span class="c-com"># Step 1：把 repo 程式碼抓進這台雲端電腦</span>
+        <span class="c-key">uses:</span> actions/checkout@v7
+        <span class="c-key">with:</span>
+          <span class="c-hi">ref: main</span>                 <span class="c-com"># 強制抓 main 最新版（原因見第 7 節！）</span>
+
+      - <span class="c-key">name:</span> Setup Node.js         <span class="c-com"># Step 2：安裝 Node.js 22 並快取 npm 套件加速</span>
+        <span class="c-key">uses:</span> actions/setup-node@v7
+        <span class="c-key">with:</span>
+          <span class="c-key">node-version:</span> <span class="c-str">'22'</span>
+          <span class="c-key">cache:</span> <span class="c-str">'npm'</span>
+          <span class="c-key">cache-dependency-path:</span> frontend/package-lock.json
+
+      - <span class="c-key">name:</span> Install dependencies  <span class="c-com"># Step 3：進 frontend/ 裝套件</span>
+        <span class="c-key">working-directory:</span> frontend
+        <span class="c-key">run:</span> npm install
+
+      - <span class="c-key">name:</span> Build Vue app         <span class="c-com"># Step 4：型別檢查 + Vite 打包出 frontend/dist/</span>
+        <span class="c-key">working-directory:</span> frontend
+        <span class="c-key">run:</span> npm run build
+
+      - <span class="c-key">name:</span> Setup Pages           <span class="c-com"># Step 5：初始化 GitHub Pages 環境</span>
+        <span class="c-key">uses:</span> actions/configure-pages@v5
+
+      - <span class="c-key">name:</span> Upload artifact       <span class="c-com"># Step 6：把 frontend/dist 打包成「貨物（Artifact）」交給下一站</span>
+        <span class="c-key">uses:</span> actions/upload-pages-artifact@v3
+        <span class="c-key">with:</span>
+          <span class="c-key">path:</span> frontend/dist
+
+  <span class="c-key">deploy:</span>                           <span class="c-com"># 工作站 2：把剛剛的貨物發佈上線</span>
+    <span class="c-key">environment:</span>
+      <span class="c-key">name:</span> github-pages
+      <span class="c-key">url:</span> ${{ steps.deployment.outputs.page_url }}
+    <span class="c-key">runs-on:</span> ubuntu-latest
+    <span class="c-hi">needs: build</span>                    <span class="c-com"># 一定要等 build 成功後才開始跑 deploy！</span>
+    <span class="c-key">steps:</span>
+      - <span class="c-key">name:</span> Deploy to GitHub Pages
+        <span class="c-key">id:</span> deployment
+        <span class="c-key">uses:</span> actions/deploy-pages@v4</code></pre>
+
+      <div class="callout">
+        <div class="callout-title">📦 什麼是 Artifact（產物）？</div>
+        因為 <code>build</code> 和 <code>deploy</code> 是兩台不同的臨時電腦，<code>build</code> 做完的 <code>frontend/dist/</code> 檔案在關機後會消失。所以要用 <code>upload-pages-artifact</code> 先把成品打包寄存在 GitHub 倉庫裡，下一站 <code>deploy</code> 再去領取並發佈到網站。
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section id="s5">
+      <h2>5. 逐行拆解 #2：<code>.github/workflows/update-data.yml</code></h2>
+      <p>這份檔案負責<strong>定時跑 Python 爬蟲、把最新價格存回 GitHub，然後叫 <code>deploy.yml</code> 上線</strong>。</p>
+
+<pre><code><span class="c-key">name:</span> <span class="c-str">Update Taiwan eShop Prices</span>
+
+<span class="c-key">on:</span>
+  <span class="c-key">schedule:</span>
+    - <span class="c-key">cron:</span> <span class="c-str">'0 1,13 * * *'</span>          <span class="c-com"># UTC 01:00 與 13:00 = 台灣時間 09:00 與 21:00</span>
+  <span class="c-key">workflow_dispatch:</span>                <span class="c-com"># 手動執行時，還讓你填一個小表單（輸入頁數限制）</span>
+    <span class="c-key">inputs:</span>
+      <span class="c-key">max_hk_pages:</span>
+        <span class="c-key">description:</span> <span class="c-str">'限制香港商店頁數（0 代表抓取全部）'</span>
+        <span class="c-key">required:</span> false
+        <span class="c-key">default:</span> <span class="c-str">'0'</span>
+
+<span class="c-key">permissions:</span>
+  <span class="c-hi">contents: write</span>                   <span class="c-com"># 注意！這裡要 write，因為機器人要 git push 新資料回 repo</span>
+  <span class="c-key">pages:</span> write
+  <span class="c-key">id-token:</span> write
+
+<span class="c-key">jobs:</span>
+  <span class="c-key">scrape:</span>                           <span class="c-com"># 工作站 1：抓資料</span>
+    <span class="c-key">runs-on:</span> ubuntu-latest
+    <span class="c-key">outputs:</span>                        <span class="c-com"># 把「資料有沒有變動」的結果傳給下一個 Job</span>
+      <span class="c-key">changed:</span> ${{ steps.commit.outputs.changed }}
+    <span class="c-key">steps:</span>
+      - <span class="c-key">name:</span> Checkout
+        <span class="c-key">uses:</span> actions/checkout@v7
+
+      - <span class="c-key">name:</span> Setup Python          <span class="c-com"># 裝 Python 3.12（我們沒用外部套件，連 pip install 都省了！）</span>
+        <span class="c-key">uses:</span> actions/setup-python@v7
+        <span class="c-key">with:</span>
+          <span class="c-key">python-version:</span> <span class="c-str">'3.12'</span>
+
+      - <span class="c-key">name:</span> Run Taiwan eShop scraper
+        <span class="c-key">run:</span> python scraper/main.py --max-hk-pages "${{ github.event.inputs.max_hk_pages || '0' }}"
+
+      - <span class="c-key">name:</span> Commit updated data and price history
+        <span class="c-key">id:</span> commit                  <span class="c-com"># 給這步驟取個名字，上面的 outputs 才能抓到它</span>
+        <span class="c-key">run:</span> |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/catalog.json data/history.json frontend/public/data/games.json
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data changes detected."
+          else
+            git commit -m "chore(data): update TW eShop prices [skip ci]"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  <span class="c-key">deploy:</span>                           <span class="c-com"># 工作站 2：條件符合才呼叫 deploy.yml</span>
+    <span class="c-key">needs:</span> scrape
+    <span class="c-hi">if: needs.scrape.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'</span>
+    <span class="c-key">uses:</span> ./.github/workflows/deploy.yml
+    <span class="c-key">permissions:</span>
+      <span class="c-key">contents:</span> read
+      <span class="c-key">pages:</span> write
+      <span class="c-key">id-token:</span> write</code></pre>
+
+      <div class="card">
+        <strong>這段 <code>if git diff --cached --quiet</code> 在幹嘛？</strong>
+        <p style="margin-top: 8px; margin-bottom: 0; color: var(--muted);">
+          它是在問 Git：「剛才 <code>git add</code> 的三個資料檔，跟原本比起來有沒有任何變化？」<br />
+          • 如果完全沒變（<code>--quiet</code> 回傳成功）：就不 commit、不 push，設定 <code>changed=false</code>，跳過無謂的部署。<br />
+          • 如果有價格變動或新特價：就以機器人身分 commit 並 push 回 <code>main</code>，設定 <code>changed=true</code>，接著自動觸發 <code>deploy</code> Job！
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 6 -->
+    <section id="s6">
+      <h2>6. 看懂 Cron 定時語法</h2>
+      <p>
+        GitHub Actions 的定時排程（<code>schedule</code>）用的是 Linux 經典的 <strong>5 欄位 Cron 語法</strong>，而且<strong>一律使用 UTC（世界協調時間）</strong>，不是台灣時間（UTC+8）！
+      </p>
+
+      <div class="cron-box">
+        <div class="cron-cell">
+          <div class="cron-val">0</div>
+          <div class="cron-lbl">分鐘 (0-59)</div>
+        </div>
+        <div class="cron-cell">
+          <div class="cron-val">1,13</div>
+          <div class="cron-lbl">小時 (0-23, UTC)</div>
+        </div>
+        <div class="cron-cell">
+          <div class="cron-val">*</div>
+          <div class="cron-lbl">每月幾號 (每日)</div>
+        </div>
+        <div class="cron-cell">
+          <div class="cron-val">*</div>
+          <div class="cron-lbl">月份 (每月)</div>
+        </div>
+        <div class="cron-cell">
+          <div class="cron-val">*</div>
+          <div class="cron-lbl">星期幾 (每天)</div>
+        </div>
+      </div>
+
+      <p>
+        所以 <code>'0 1,13 * * *'</code> 的意思就是：<br />
+        <strong>每天 UTC 01:00（+8 = 台灣早上 09:00）和 UTC 13:00（+8 = 台灣晚上 21:00）的整點 0 分各跑一次！</strong>
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>常見範例</th>
+            <th>代表意思（換算成台灣時間 UTC+8）</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>0 1 * * *</code></td><td>每天台灣時間早上 09:00 跑一次</td></tr>
+          <tr><td><code>30 14 * * *</code></td><td>每天台灣時間晚上 22:30 跑一次</td></tr>
+          <tr><td><code>0 */6 * * *</code></td><td>每 6 小時跑一次（00:00 / 06:00 / 12:00 / 18:00 UTC）</td></tr>
+          <tr><td><code>0 1 * * 1</code></td><td>每週一台灣時間早上 09:00 跑一次</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 7 -->
+    <section id="s7">
+      <h2>7. 實戰才學得到的 3 個真實小坑（我們剛才真的踩過！）</h2>
+      <p>看教學文章很少人講，但自己動手做一定會遇到——這三個都是我們今天剛解掉的真實案例：</p>
+
+      <div class="callout warn">
+        <div class="callout-title">坑 #1：為什麼 <code>deploy.yml</code> 一定要加 <code>ref: main</code>？</div>
+        <p style="margin: 6px 0 0;">
+          當 <code>update-data.yml</code> 啟動時，GitHub 會把「當下的 commit（假設叫版本 A）」記成 <code>github.sha</code>。就算第一個 Job <code>scrape</code> 推了新資料（版本 B），如果第二個 Job 呼叫 <code>deploy.yml</code> 時沒寫 <code>ref: main</code>，<code>actions/checkout</code> 預設還是會抓「觸發當下的版本 A」，導致你明明抓完新價格，網頁卻還是舊的！加上 <code>ref: main</code> 就會明確抓 <code>main</code> 分支最新的版本 B。
+        </p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">坑 #2：為什麼 commit 訊息後面寫了 <code>[skip ci]</code>？</div>
+        <p style="margin: 6px 0 0;">
+          這是一個好習慣：告訴 GitHub「這個機器人自動產生的資料 commit，不要再去額外觸發其他 CI 流程」，避免重複跑兩次部署，或不小心造成「機器人推資料 → 觸發流程 → 機器人又推資料」的無限迴圈。（雖然 GitHub 預設用 <code>GITHUB_TOKEN</code> 推的 commit 本來就會擋掉連鎖觸發，但加上 <code>[skip ci]</code> 讓意圖更清楚。）
+        </p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">坑 #3：為什麼會有「Node.js 20 is deprecated」警告？</div>
+        <p style="margin: 6px 0 0;">
+          像 <code>actions/checkout@v4</code> 這種官方積木，背後其實是用 Node.js 寫的小程式。當 GitHub 在 2026 年淘汰 Node 20 執行環境、改用 Node 24 時，舊版積木（<code>@v4</code> / <code>@v5</code>）就會跳出黃色棄用警告。解法很簡單：把積木版本升級到支援 Node 24 的最新版本（<code>@v7</code>）就乾淨了！
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Lesson 01 — GitHub Actions 入門</span>
+      <a href="./index.html">← 回到目錄</a>
+    </footer>
+  </div>
+</body>
+</html>
