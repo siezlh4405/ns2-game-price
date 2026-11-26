@@ -24,7 +24,8 @@ ns2-game-price-tw/
 │   ├── requirements.txt             # Intentionally empty (stdlib only)
 │   └── sources/
 │       ├── tw_official.py           # https://www.nintendo.com/tw/api/software (24 featured titles; accurate Switch 2 tags)
-│       ├── hk_store.py              # https://store.nintendo.com.hk/games/all-released-games (~1,569 digital titles, 66 pages)
+│       ├── titledb_hk.py            # raw.githubusercontent.com/blawar/titledb/master/HK.zh.json (~13,765 HK/TW titles; CI-friendly)
+│       ├── hk_store.py              # https://store.nintendo.com.hk/games/all-released-games (~1,570 digital titles, 66 pages; local/proxy)
 │       └── manual.json              # User-maintained extra NSUIDs
 ├── data/
 │   ├── catalog.json                 # Persistent NSUID catalog cache (prevents data wipe if a source is blocked in CI)
@@ -52,9 +53,10 @@ ns2-game-price-tw/
 1. **CORS**: All Nintendo endpoints (`api.ec.nintendo.com`, `nintendo.com/tw/api/software`, `store.nintendo.com.hk`) lack `Access-Control-Allow-Origin`. Frontend MUST read static `./data/games.json`, never fetch Nintendo directly from the browser.
 2. **HK Store Blocked on CI IPs**: `store.nintendo.com.hk` blocks GitHub Actions' US datacenter IPs (returns 0 items in CI, works fine from Taiwan local IP).
    - **Mitigation**: `scraper/main.py` merges with `data/catalog.json` first and catches source errors so CI never wipes the catalog. `api.ec.nintendo.com/v1/price?country=TW` works reliably from CI.
-3. **HK & TW NSUID Sharing**: Most digital games on `store.nintendo.com.hk` share NSUIDs with Taiwan eShop (~1,098 of 1,570 return valid TWD prices on `country=TW`).
-4. **Old Gist Endpoints Dead**: `ec.nintendo.com/api/{TW|HK}/zh/search/sales` returns 404; `nintendo.com/tw/data/json/switch_software.json` stopped updating in Oct 2024.
-5. **Reusable Workflow Checkout**: `deploy.yml` MUST keep `with: ref: main` on `actions/checkout@v7`, otherwise when called by `update-data.yml` it checks out the pre-commit SHA instead of the newly committed `games.json`.
+3. **HK & TW NSUID Sharing (and Non-Sharing with JP/US/EU/KR/AU)**: Taiwan and Hong Kong share the exact same Nintendo Asia NSUID pool (100% overlap; ~4,546 of 14,019 catalog entries return valid TWD prices on `country=TW`). By contrast, JP/US/EU/KR/AU use completely separate regional NSUID pools (verified 0% hit rate on `country=TW`).
+4. **Price API Rate Limit**: `api.ec.nintendo.com/v1/price` returns HTTP 403 if queried too aggressively with concurrency (~125 fast batches). `price_fetcher.py` uses sequential 0.4s pacing with 403/429 cooldown retries, and `main.py` caches `twNotFoundAt` in `data/catalog.json` (7-day TTL) so daily runs only query ~4,700 NSUIDs (~94 batches).
+5. **Old Gist Endpoints Dead**: `ec.nintendo.com/api/{TW|HK}/zh/search/sales` returns 404; `nintendo.com/tw/data/json/switch_software.json` stopped updating in Oct 2024.
+6. **Reusable Workflow Checkout**: `deploy.yml` MUST keep `with: ref: main` on `actions/checkout@v7`, otherwise when called by `update-data.yml` it checks out the pre-commit SHA instead of the newly committed `games.json`.
 
 ## Common Commands
 
@@ -75,7 +77,7 @@ npm run build
 ```
 
 ## Active Roadmap / Known Issues (from README.md)
-- Replace/augment HK store scraping in CI so new games are discovered automatically without local runs (e.g., JP/US/EU catalog sources or proxy/Cloudflare Worker).
-- Expand catalog coverage to catch other-region NSUIDs that have valid `country=TW` prices.
+- **Cloudflare Worker proxy for `store.nintendo.com.hk` top 3–5 pages in CI**: Even with `titledb_hk.py` covering ~13,765 HK/TW titles in CI, ~235 newest Switch 2 / deluxe bundle titles appear first or exclusively on `store.nintendo.com.hk`. Adding a free Cloudflare Worker relay lets CI scrape the newest 3–5 pages daily for 100% zero-local automation.
+- **Self-hosted WebP thumbnail cache (fallback if `wsrv.nl` is blocked)**: `GameCard.vue` currently proxies images via `wsrv.nl` (with direct fallback) to bypass corporate firewall blocks on `nintendo.*`. If corporate networks also block `wsrv.nl`, pre-generate ~320px WebP thumbnails (~12 KB each, ~55 MB total) and deploy them on the same `github.io` origin.
 - Refine `isAllTimeLow` badge logic (require >= 2 price points or minimum tracking window instead of marking every initial sale as all-time low).
 - Optional price-drop notifications (Discord / Telegram / Email) triggered from `update-data.yml`.
