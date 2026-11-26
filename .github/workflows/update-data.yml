@@ -2,14 +2,14 @@ name: Update Taiwan eShop Prices
 
 on:
   schedule:
-    # 台灣時間 (UTC+8) 每天 09:00 與 21:00
-    - cron: '0 1,13 * * *'
+    # 台灣時間 (UTC+8) 每天 09:17 與 21:17（避開整點尖峰延遲）
+    - cron: '17 1,13 * * *'
   workflow_dispatch:
     inputs:
-      max_hk_pages:
-        description: '限制香港商店頁數（0 代表抓取全部）'
+      recheck_missing:
+        description: '是否強制重查先前台灣無上架的遊戲（true / false）'
         required: false
-        default: '0'
+        default: 'false'
 
 permissions:
   contents: write
@@ -31,7 +31,12 @@ jobs:
           python-version: '3.12'
 
       - name: Run Taiwan eShop scraper
-        run: python scraper/main.py --max-hk-pages "${{ github.event.inputs.max_hk_pages || '0' }}"
+        run: |
+          if [ "${{ github.event.inputs.recheck_missing }}" = "true" ]; then
+            python scraper/main.py --skip-hk --recheck-missing
+          else
+            python scraper/main.py --skip-hk
+          fi
 
       - name: Commit updated data and price history
         id: commit

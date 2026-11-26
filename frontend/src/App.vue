@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import GameCard from './components/GameCard.vue'
 import { useWishlist } from './composables/useWishlist'
 import type { FilterTab, Game, GamesPayload, SortOption } from './types/game'
@@ -12,6 +12,12 @@ const activeTab = ref<FilterTab>('on_sale')
 const searchQuery = ref('')
 const sortBy = ref<SortOption>('discount_desc')
 const onlyOnSaleInTab = ref(false)
+const PAGE_SIZE = 60
+const visibleCount = ref(PAGE_SIZE)
+
+watch([activeTab, searchQuery, sortBy, onlyOnSaleInTab], () => {
+  visibleCount.value = PAGE_SIZE
+})
 
 const { has: isWishlisted, toggle: toggleWishlist, count: wishlistCount } = useWishlist()
 
@@ -97,6 +103,12 @@ const filteredGames = computed<Game[]>(() => {
     }
   })
 })
+
+const visibleGames = computed<Game[]>(() =>
+  filteredGames.value.slice(0, visibleCount.value)
+)
+
+const hasMoreGames = computed(() => visibleCount.value < filteredGames.value.length)
 
 const tabs = computed<{ key: FilterTab; label: string; count?: number }[]>(() => [
   { key: 'on_sale', label: '🔥 特價中', count: payload.value?.stats.onSale },
@@ -238,12 +250,22 @@ const tabs = computed<{ key: FilterTab; label: string; count?: number }[]>(() =>
           class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
           <GameCard
-            v-for="game in filteredGames"
+            v-for="game in visibleGames"
             :key="game.nsuid"
             :game="game"
             :is-wishlisted="isWishlisted(game.nsuid)"
             @toggle-wishlist="toggleWishlist"
           />
+        </div>
+
+        <div v-if="hasMoreGames" class="mt-8 flex justify-center">
+          <button
+            type="button"
+            class="rounded-xl border border-slate-700 bg-slate-900 px-6 py-2.5 text-sm font-medium text-slate-200 transition hover:border-rose-500/60 hover:bg-slate-800 hover:text-white"
+            @click="visibleCount += PAGE_SIZE"
+          >
+            顯示更多遊戲（目前 {{ visibleGames.length }} / {{ filteredGames.length }}）
+          </button>
         </div>
       </template>
     </main>

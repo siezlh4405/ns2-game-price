@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Game } from '../types/game'
 
 const props = defineProps<{
@@ -10,6 +10,32 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle-wishlist', nsuid: string): void
 }>()
+
+const imgStage = ref<'proxy' | 'direct' | 'failed'>('proxy')
+
+watch(
+  () => props.game.imageUrl,
+  () => {
+    imgStage.value = 'proxy'
+  }
+)
+
+const displayImageUrl = computed(() => {
+  const raw = props.game.imageUrl
+  if (!raw || imgStage.value === 'failed') return ''
+  if (imgStage.value === 'proxy') {
+    return `https://wsrv.nl/?url=${encodeURIComponent(raw)}&w=480&output=webp`
+  }
+  return raw
+})
+
+function onImageError() {
+  if (imgStage.value === 'proxy') {
+    imgStage.value = 'direct'
+  } else {
+    imgStage.value = 'failed'
+  }
+}
 
 const platformBadge = computed(() => {
   switch (props.game.platform) {
@@ -60,11 +86,13 @@ function formatTwd(price: number): string {
     <div class="relative aspect-video w-full overflow-hidden bg-slate-800">
       <a :href="game.storeUrl" target="_blank" rel="noopener noreferrer" class="block h-full w-full">
         <img
-          v-if="game.imageUrl"
-          :src="game.imageUrl"
+          v-if="displayImageUrl"
+          :src="displayImageUrl"
           :alt="game.title"
           loading="lazy"
+          referrerpolicy="no-referrer"
           class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          @error="onImageError"
         />
         <div
           v-else

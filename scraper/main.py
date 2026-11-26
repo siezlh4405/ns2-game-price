@@ -9,6 +9,7 @@ from typing import Any
 from history import load_history, save_history, update_history
 from price_fetcher import fetch_tw_prices
 from sources.hk_store import fetch_hk_store
+from sources.titledb_hk import fetch_titledb_hk
 from sources.tw_official import fetch_tw_official
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -134,7 +135,17 @@ def main() -> None:
     parser.add_argument(
         "--skip-hk",
         action="store_true",
-        help="Skip scraping HK store and rely on cached catalog.json + tw_official.",
+        help="Skip scraping HK store and rely on cached catalog.json + other sources.",
+    )
+    parser.add_argument(
+        "--skip-titledb",
+        action="store_true",
+        help="Skip fetching blawar/titledb HK.zh.json.",
+    )
+    parser.add_argument(
+        "--recheck-missing",
+        action="store_true",
+        help="Re-query NSUIDs recently marked not_found on Taiwan eShop.",
     )
     parser.add_argument(
         "--workers",
@@ -172,17 +183,59 @@ def main() -> None:
         except Exception as exc:
             print(f"[main]    -> hk_store failed (using cache): {exc}")
 
+    titledb_games: list[dict[str, Any]] = []
+    if args.skip_titledb:
+        print("[main] 2b. Skipping TitleDB HK (--skip-titledb)")
+    else:
+        print("[main] 2b. Fetching TitleDB HK/TW catalog (HK.zh.json)...")
+        try:
+            titledb_games = fetch_titledb_hk()
+            print(f"[main]    -> {len(titledb_games)} titles from titledb_hk")
+        except Exception as exc:
+            print(f"[main]    -> titledb_hk failed (using cache): {exc}")
+
     manual_games = load_manual_games()
     print(f"[main]    -> {len(manual_games)} titles from manual.json")
 
-    catalog = merge_catalog([cached_games, tw_games, hk_games, manual_games])
+    catalog = merge_catalog([cached_games, tw_games, hk_games, titledb_games, manual_games])
     print(f"[main] 3. Merged unique NSUIDs: {len(catalog)}")
+
+    # Skip recently confirmed not_found NSUIDs (7-day TTL) to keep daily runs fast & rate-limit safe
+    nsuids_to_query: list[str] = []
+    skipped_missing = 0
+    for nsuid, game in catalog.items():
+        if not args.recheck_missing:
+            not_found_at = game.get("twNotFoundAt")
+            if not_found_at:
+                try:
+                    checked_dt = datetime.strptime(not_found_at, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
+                    if (now_utc - checked_dt).days < 7:
+                        skipped_missing += 1
+                        continue
+                except ValueError:
+                    pass
+        nsuids_to_query.append(nsuid)
+
+    print(
+        f"[main] 4. Querying Taiwan eShop prices (country=TW) for {len(nsuids_to_query)} NSUIDs "
+        f"(skipped {skipped_missing} recently not_found)..."
+    )
+    prices = fetch_tw_prices(nsuids_to_query, country="TW", lang="zh")
+
+    # Record TW availability back into catalog.json before saving
+    for nsuid, price_info in prices.items():
+        game = catalog.get(nsuid)
+        if not game:
+            continue
+        if price_info["salesStatus"] == "not_found" or price_info["regularPrice"] is None:
+            game["twNotFoundAt"] = today_str
+        else:
+            game.pop("twNotFoundAt", None)
 
     if catalog:
         save_cached_catalog(catalog, updated_at)
-
-    print("[main] 4. Querying Taiwan eShop prices (country=TW)...")
-    prices = fetch_tw_prices(list(catalog.keys()), country="TW", lang="zh")
 
     history = load_history(HISTORY_PATH)
 
