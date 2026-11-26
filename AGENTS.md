@@ -79,5 +79,4 @@ npm run build
 ## Active Roadmap / Known Issues (from README.md)
 - **Cloudflare Worker proxy for `store.nintendo.com.hk` top 3–5 pages in CI**: Even with `titledb_hk.py` covering ~13,765 HK/TW titles in CI, ~235 newest Switch 2 / deluxe bundle titles appear first or exclusively on `store.nintendo.com.hk`. Adding a free Cloudflare Worker relay lets CI scrape the newest 3–5 pages daily for 100% zero-local automation.
 - **Self-hosted WebP thumbnail cache (fallback if `wsrv.nl` is blocked)**: `GameCard.vue` currently proxies images via `wsrv.nl` (with direct fallback) to bypass corporate firewall blocks on `nintendo.*`. If corporate networks also block `wsrv.nl`, pre-generate ~320px WebP thumbnails (~12 KB each, ~55 MB total) and deploy them on the same `github.io` origin.
-- Refine `isAllTimeLow` badge logic (require >= 2 price points or minimum tracking window instead of marking every initial sale as all-time low).
 - Optional price-drop notifications (Discord / Telegram / Email) triggered from `update-data.yml`.

@@ -42,5 +42,5 @@ npm run dev
 - [x] **擴充台灣 eShop 全量目錄（CI 不被擋）**：已整合 `blawar/titledb`（`HK.zh.json`），使台灣有價遊戲從 1,098 款擴充至 **4,546 款**；且實測確認日／美／歐／韓／澳區 NSUID 與 `country=TW` 共通率為 0%，僅港台共用同一套亞洲區 NSUID。
 - [ ] **用免費 Cloudflare Worker 補齊 `store.nintendo.com.hk` 最新新作（達成 100% 零本機全自動）**：`store.nintendo.com.hk` 在 GitHub Actions 美國機房 IP 會被擋，目前 CI 以 `--skip-hk` 略過（靠 `titledb_hk` + `tw_official` + `catalog.json` 兜底）；但最新 Switch 2 遊戲與部分第三方數位豪華版仍以香港官方商店上架最快。後續可架設免費 Cloudflare Worker（每日 10 萬次免費額度）當轉發代理，讓 CI 每天只抓前 3～5 頁最新上架商品即可完全免本機操作。
 - [ ] **封面圖同網域 WebP 縮圖快取（備案）**：目前前端已改走免費 `wsrv.nl` 代理（含失敗退回原網址）以繞過公司防火牆封鎖 `nintendo.*` 網域；若實測公司網路連 `wsrv.nl` 也封鎖，可改由爬蟲／CI 將封面壓成小尺寸 WebP 縮圖（~12 KB/張，約 50–60 MB）部署在同一個 `github.io` 網域，確保只要打得開網站就 100% 看得到圖。
-- [ ] **史低標籤判斷優化**：剛建站初期因只有第一筆快照，所有特價遊戲都會顯示「史低」，後續可改為累積至少 2 次價格變動或追蹤達一定天數後才標示。
+- [x] **史低標籤判斷優化**：已調整為需累積至少 2 次價格紀錄（`len(records) >= 2`）才顯示「🔥 史低」，避免首次抓到特價就全部標成史低。
 - [ ] **降價通知（選配）**：未來可在 GitHub Actions 偵測到願望清單或新史低時推送至 Discord / Telegram / Email。

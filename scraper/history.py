@@ -54,11 +54,16 @@ def update_history(
                 entry["records"] = records[-30:]
 
     lowest_price = entry.get("lowestPrice")
+    records = entry.get("records", [])
     is_on_sale = regular_price is not None and current_price < regular_price
+    # Require at least 2 recorded price points so initial discovery doesn't mark every sale as all-time low
     is_all_time_low = bool(
-        is_on_sale and lowest_price is not None and current_price <= lowest_price
+        is_on_sale
+        and len(records) >= 2
+        and lowest_price is not None
+        and current_price <= lowest_price
     )
-    return lowest_price, is_all_time_low, entry.get("records", [])
+    return lowest_price, is_all_time_low, records
 
 
 def save_history(
